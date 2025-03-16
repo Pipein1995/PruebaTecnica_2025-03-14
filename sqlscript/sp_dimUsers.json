@@ -1,0 +1,17 @@
+{
+	"name": "sp_dimUsers",
+	"properties": {
+		"content": {
+			"query": "CREATE PROCEDURE Sp_UpdateAndInsertDimClient AS\nBEGIN\n\tIF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = N'ext_users' )\n\t\tBEGIN\n\t\t\tCREATE EXTERNAL TABLE ext_users\n\t\t\t(\n\t\t\tid INT,\n\t\t\tcurrent_age INT,\n\t\t\tretirement_age INT,\n\t\t\tbirth_year INT,\n\t\t\tbirth_month INT,\n\t\t\tgender VARCHAR(10),\n\t\t\t[address] VARCHAR(255),\n\t\t\tlatitude FLOAT,\n\t\t\tlongitude FLOAT,\n\t\t\tper_capita_income VARCHAR(100),\n\t\t\tyearly_income VARCHAR(100),\n\t\t\ttotal_debt VARCHAR(100),\n\t\t\tcredit_score INT,\n\t\t\tnum_credit_cards INT\n\t\t\t)\n\t\t\tWITH\n\t\t\t(\n\t\t\t\tLOCATION = '/users_data.csv',\n\t\t\t\tDATA_SOURCE = ds_datalake,\n\t\t\t\tFILE_FORMAT = csv_format\n\t\t\t)\n\t\tEND\n\n\n\n\t------------------------CTA para transformaciones\n\tIF OBJECT_ID(N'CTA_DimUsers', N'U') IS NOT NULL\n\t\tDROP TABLE CTA_DimUsers\n\n\tCREATE TABLE CTA_DimUsers  \n\tWITH  \n\t(  \n\t\tDISTRIBUTION = ROUND_ROBIN,  \n\t\tCLUSTERED COLUMNSTORE INDEX  \n\t)  \n\tAS  \n\tSELECT \n\t\tCAST(id as INT) as id_client,\n\t\tCAST(current_age as INT) as current_age,\n\t\tCAST(retirement_age as INT) as retirement_age,\n\t\tCAST(birth_year as INT) as birth_year,\n\t\tCAST(birth_month as TINYINT) as birth_month,\n\t\tgender ,\n\t\t[address] ,\n\t\tCAST(latitude as Decimal(20,4)) as latitude,\n\t\tCAST(longitude as Decimal(20,4)) as longitude ,\n\t\tGETUTCDATE() AS CreationDate\n\tFROM ext_users\n\n\tSELECT * FROM CTA_DimUsers\n\n\t--------------------\n\t--Insertar los datos nuevos\n\tINSERT INTO DimClient\n\t(\n\t\t[Id_client]\n\t\t,[current_age]\n\t\t,[retirement_age]\n\t\t,[birth_year]\n\t\t,[birth_month]\n\t\t,[gender]\n\t\t,[address]\n\t\t,[latitude]\n\t\t,[longitude]\n\t\t,[CreationDate]\n\t)\n\tSELECT DISTINCT\n\t\tT.[Id_client]\n\t\t,T.[current_age]\n\t\t,T.[retirement_age]\n\t\t,T.[birth_year]\n\t\t,T.[birth_month]\n\t\t,T.[gender]\n\t\t,T.[address]\n\t\t,T.[latitude]\n\t\t,T.[longitude]\n\t\t,T.[CreationDate]\n\tFROM CTA_DimUsers AS T\n\tLEFT JOIN DimClient AS D ON T.Id_client = D.Id_client\n\tWHERE D.ClientSNK IS NULL\n\n\t--------------------------------------------------------------\n\t--Actualizar los datos\n\tUPDATE D SET\n\t\t [current_age]     = T.[current_age]   \n\t\t,[retirement_age]\t=   T.[retirement_age]\n\t\t,[birth_year]\t\t=   T.[birth_year]\n\t\t,[birth_month]\t\t=   T.[birth_month]\n\t\t,[gender]\t\t\t=   T.[gender]\n\t\t,[address]\t\t\t=   T.[address]\n\t\t,[latitude]\t\t\t=   T.[latitude]\n\t\t,[longitude]\t\t=   T.[longitude]\n\t\t,[CreationDate]\t\t=   T.[CreationDate]\n\tFROM DimClient AS D \n\tINNER JOIN CTA_DimUsers AS T ON T.Id_client = D.Id_client\n\tWHERE \n\t\tD.[retirement_age]\t <> T.[retirement_age]\t OR\n\t\tD.[birth_year]\t\t <> T.[birth_year]\t\t OR\n\t\tD.[birth_month]\t\t <> T.[birth_month]\t\t OR\n\t\tD.[gender]\t\t\t <> T.[gender]\t\t\t OR\n\t\tD.[address]\t\t\t <> T.[address]\t\t\t OR\n\t\tD.[latitude]\t\t <> T.[latitude]\t\t OR\n\t\tD.[longitude]\t\t <> T.[longitude]\t\n\n\n\t--------- Eliminar el CTA\n\tIF OBJECT_ID(N'CTA_DimUsers', N'U') IS NOT NULL\n\t\tDROP TABLE CTA_DimUsers\nEND",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

@@ -1,0 +1,17 @@
+{
+	"name": "Creacion_tables",
+	"properties": {
+		"content": {
+			"query": "CREATE TABLE DimClient\n(\n\tClientSNK [int] IDENTITY(1,1) NOT NULL,\n\tId_client INT NULL,\n\tcurrent_age INT NULL,\n\tretirement_age    int    NULL,\n\tbirth_year    int       NULL,\n\tbirth_month   TINYINT NULL,\n\tgender    VARCHAR(30) NULL,\n\t[address]    Varchar(2000) NULL,\n\tlatitude    decimal(20,4) NULL,\n\tlongitude    decimal(20,4) NULL,\n\tCreationDate DATETIME NOT NULL\n)\nWITH\n(\n\tDISTRIBUTION = REPLICATE,\n\tCLUSTERED INDEX\n\t(\n\t\t[ClientSNK] ASC\n\t)\n)\nGO\n\nCREATE TABLE DimCards\n(\n\tCardSNK [int] IDENTITY(1,1) NOT NULL,\n\tId_card INT NULL,\n\tcard_brand    Varchar(50) NULL,\n\tcard_type    Varchar(50) NULL,\n\tcard_number    INT NULL,\n\thas_dhip     Varchar(10) NULL,\n\tnum_cards    int NULL,\n\tCreationDate DATETIME NOT NULL\n)\nWITH\n(\n\tDISTRIBUTION = REPLICATE,\n\tCLUSTERED INDEX\n\t(\n\t\t[CardSNK] ASC\n\t)\n)\nGO\n\nCREATE TABLE FactTransaction\n(\n\tInvoice     INT NOT NULL,\n\tInvoiceDate    datetime NOT NULL,\n\t[Date]             date NOT NULL,\n\tclientSnk    INT NOT NULL,\n\tCardSnk    INT NOT NULL,\n\tAmount    decimal(20,4) NOT NULL,\n\tuse_chip    Varchar(100) NULL,\n\tLocationSNK     INT NOT NULL,\n\tCreationDate DATETIME NOT NULL\n)\nWITH\n(\n\tDISTRIBUTION = HASH ( [ClientSNK] ),\n\tCLUSTERED INDEX\n\t(\n\t\t[InvoiceDate] ASC\n\t)\n);\n\nCREATE TABLE DimLocation\n(\n\tLocationSNK [int] IDENTITY(1,1) NOT NULL,\n\tmerchant_city Varchar(200) NULL,\n\tmerchant_state Varchar(200) NULL,\n\tCreationDate DATETIME NOT NULL\n)\nWITH\n(\n\tDISTRIBUTION = REPLICATE,\n\tCLUSTERED INDEX\n\t(\n\t\t[LocationSNK] ASC\n\t)\n)\nGO\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

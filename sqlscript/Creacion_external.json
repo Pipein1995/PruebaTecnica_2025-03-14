@@ -1,0 +1,17 @@
+{
+	"name": "Creacion_external",
+	"properties": {
+		"content": {
+			"query": "\tCREATE EXTERNAL DATA SOURCE ds_datalake\nWITH (\n    LOCATION = 'abfs://raw@nequidl.dfs.core.windows.net/',\n    TYPE = HADOOP\n);\n\nCREATE EXTERNAL FILE FORMAT csv_format\nWITH (\n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS (\n        FIELD_TERMINATOR = ',',\n        STRING_DELIMITER = '\"',\n        FIRST_ROW = 2  -- Asume que la primera fila tiene encabezados\n    )\n);\n\nCREATE EXTERNAL FILE FORMAT parquet_format\nWITH (\n    FORMAT_TYPE = PARQUET\n);\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

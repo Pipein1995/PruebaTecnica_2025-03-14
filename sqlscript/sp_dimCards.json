@@ -1,0 +1,17 @@
+{
+	"name": "sp_dimCards",
+	"properties": {
+		"content": {
+			"query": "CREATE PROCEDURE Sp_UpdateAndInsertDimCards\n\tIF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = N'ext_cards' )\n\t\tBEGIN\n\t\t\tCREATE EXTERNAL TABLE ext_cards\n\t\t\t(\n\t\t\t  id INT,\n\t\t\t  client_id INT,\n\t\t\t  card_brand VARCHAR(100),\n\t\t\t  card_type VARCHAR(100),\n\t\t\t  card_number VARCHAR(100),\n\t\t\t  expires VARCHAR(100),\n\t\t\t  cvv VARCHAR(100),\n\t\t\t  has_chip VARCHAR(100),\n\t\t\t  num_cards_issued INT,\n\t\t\t  credit_limit VARCHAR(100), \n\t\t\t  acct_open_date VARCHAR(100), \n\t\t\t  year_pin_last_changed INT,\n\t\t\t  card_on_dark_web VARCHAR(100)\n\t\t\t)\n\t\t\tWITH\n\t\t\t(\n\t\t\t\tLOCATION = '/cards_data.csv',\n\t\t\t\tDATA_SOURCE = ds_datalake,\n\t\t\t\tFILE_FORMAT = csv_format\n\t\t\t)\n\t\tEND\n\n\t-------------------------------\n\t--CTA para transformaciones\n\n\tIF OBJECT_ID(N'CTA_DimCards', N'U') IS NOT NULL\n\t\t\tDROP TABLE CTA_DimCards\n\n\t\tCREATE TABLE CTA_DimCards  \n\t\tWITH  \n\t\t(  \n\t\t\tDISTRIBUTION = ROUND_ROBIN,  \n\t\t\tCLUSTERED COLUMNSTORE INDEX  \n\t\t)  \n\t\tAS  \n\t\tSELECT \n\t\t\tCAST(id as INT) as Id_Card,\n\t\t\tcard_brand  as card_brand,\n\t\t\tcard_type as card_type,\n\t\t\tcard_number as card_number,\n\t\t\thas_chip as has_chip,\n\t\t\tCAST(num_cards_issued as TINYINT) as num_cards,\n\t\t\tGETUTCDATE() AS CreationDate\n\t\tFROM ext_cards\n\n\t-------------------------------------\n\t--Insertar datos nuevos\n\n\tINSERT INTO DimCards\n\t\t(\n\t\t[Id_card]\n\t\t,[card_brand]\n\t\t,[card_type]\n\t\t,[card_number]\n\t\t,[has_chip]\n\t\t,[num_cards]\n\t\t,[CreationDate]\n\t\t)\n\tSELECT DISTINCT\n\t\tT.Id_Card,\n\t\tT.card_brand,\n\t\tT.card_type,\n\t\tT.card_number,\n\t\tT.has_chip,\n\t\tT.num_cards,\n\t\tGETUTCDATE() as CreationDate\n\tFROM CTA_DimCards as T\n\tLEFT JOIN DimCards as D ON T.Id_Card = D.Id_card\n\tWHERE D.CardSNK IS NULL\n\n\t-------------------------------------------------------\n\t--Actualizar datos\n\n\tUPDATE D SET\n\t\t[card_brand]\t=  T.[card_brand]\t\n\t\t,[card_type]\t=  T.[card_type]\t\n\t\t,[card_number]\t=  T.[card_number]\t\n\t\t,[has_chip]\t\t=  T.[has_chip]\t\t\n\t\t,[num_cards]\t=  T.[num_cards]\t\n\t\t,[CreationDate]\t=  T.[CreationDate]\n\tFROM  DimCards as D \n\tINNER JOIN CTA_DimCards as T ON T.Id_Card = D.Id_card\n\tWHERE\n\t\tD.[card_brand]\t<>  T.[card_brand]\tOR\n\t\tD.[card_type]\t\t<>  T.[card_type]\tOR\n\t\tD.[card_number]\t<>  T.[card_number]\tOR\n\t\tD.[has_chip]\t\t<>  T.[has_chip]\tOR\t\n\t\tD.[num_cards]\t\t<>  T.[num_cards]\t\n\nEND",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
