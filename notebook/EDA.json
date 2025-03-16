@@ -18,15 +18,16 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "9820f4ed-978b-47be-97a4-b3f028f49dc0"
+				"spark.autotune.trackingId": "1d9b0cc4-fc93-425b-843f-27b8c96d1a7b"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"synapse_widget": {
-				"version": "0.1"
-			},
 			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
 			"language_info": {
 				"name": "python"
 			},
@@ -37,14 +38,13 @@
 				"endpoint": "https://nequifinancial.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkfinancial",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.4",
 				"nodeCount": 10,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -74,7 +74,7 @@
 					"import pandas as pd\n",
 					""
 				],
-				"execution_count": 1
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -108,7 +108,7 @@
 					"    StructField(\"errors\", StringType(), True)\n",
 					"    ])"
 				],
-				"execution_count": 14
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -118,7 +118,7 @@
 					"cards_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/cards_data.csv\")\n",
 					"users_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/users_data.csv\")"
 				],
-				"execution_count": 16
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -127,7 +127,7 @@
 					"cards_df.show(5)\n",
 					"users_df.show(5)"
 				],
-				"execution_count": 17
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -136,7 +136,7 @@
 					"users_df.printSchema()\n",
 					"cards_df.printSchema()"
 				],
-				"execution_count": 19
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -146,7 +146,7 @@
 					"print(f\"Tipos de Tarjeta: {cards_df.count()}\")\n",
 					""
 				],
-				"execution_count": 10
+				"execution_count": null
 			}
 		]
 	}
