@@ -97,7 +97,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"notebook": {
-						"referenceName": "EDA",
+						"referenceName": "ConvertParquet",
 						"type": "NotebookReference"
 					},
 					"snapshot": true,
