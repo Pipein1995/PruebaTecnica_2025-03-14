@@ -275,6 +275,106 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/Creacion_external')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\tCREATE EXTERNAL DATA SOURCE ds_datalake\nWITH (\n    LOCATION = 'abfs://raw@nequidl.dfs.core.windows.net/',\n    TYPE = HADOOP\n);\n\nCREATE EXTERNAL FILE FORMAT csv_format\nWITH (\n    FORMAT_TYPE = DELIMITEDTEXT,\n    FORMAT_OPTIONS (\n        FIELD_TERMINATOR = ',',\n        STRING_DELIMITER = '\"',\n        FIRST_ROW = 2  -- Asume que la primera fila tiene encabezados\n    )\n);\n\nCREATE EXTERNAL FILE FORMAT parquet_format\nWITH (\n    FORMAT_TYPE = PARQUET\n);\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Creacion_tables')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE TABLE DimClient\n(\n\tClientSNK [int] IDENTITY(1,1) NOT NULL,\n\tId_client INT NULL,\n\tcurrent_age INT NULL,\n\tretirement_age    int    NULL,\n\tbirth_year    int       NULL,\n\tbirth_month   TINYINT NULL,\n\tgender    VARCHAR(30) NULL,\n\t[address]    Varchar(2000) NULL,\n\tlatitude    decimal(20,4) NULL,\n\tlongitude    decimal(20,4) NULL,\n\tCreationDate DATETIME NOT NULL\n)\nWITH\n(\n\tDISTRIBUTION = REPLICATE,\n\tCLUSTERED INDEX\n\t(\n\t\t[ClientSNK] ASC\n\t)\n)\nGO\n\nCREATE TABLE DimCards\n(\n\tCardSNK [int] IDENTITY(1,1) NOT NULL,\n\tId_card INT NULL,\n\tcard_brand    Varchar(50) NULL,\n\tcard_type    Varchar(50) NULL,\n\tcard_number    INT NULL,\n\thas_dhip     Varchar(10) NULL,\n\tnum_cards    int NULL,\n\tCreationDate DATETIME NOT NULL\n)\nWITH\n(\n\tDISTRIBUTION = REPLICATE,\n\tCLUSTERED INDEX\n\t(\n\t\t[CardSNK] ASC\n\t)\n)\nGO\n\nCREATE TABLE FactTransaction\n(\n\tInvoice     INT NOT NULL,\n\tInvoiceDate    datetime NOT NULL,\n\t[Date]             date NOT NULL,\n\tclientSnk    INT NOT NULL,\n\tCardSnk    INT NOT NULL,\n\tAmount    decimal(20,4) NOT NULL,\n\tuse_chip    Varchar(100) NULL,\n\tLocationSNK     INT NOT NULL,\n\tCreationDate DATETIME NOT NULL\n)\nWITH\n(\n\tDISTRIBUTION = HASH ( [ClientSNK] ),\n\tCLUSTERED INDEX\n\t(\n\t\t[InvoiceDate] ASC\n\t)\n);\n\nCREATE TABLE DimLocation\n(\n\tLocationSNK [int] IDENTITY(1,1) NOT NULL,\n\tmerchant_city Varchar(200) NULL,\n\tmerchant_state Varchar(200) NULL,\n\tCreationDate DATETIME NOT NULL\n)\nWITH\n(\n\tDISTRIBUTION = REPLICATE,\n\tCLUSTERED INDEX\n\t(\n\t\t[LocationSNK] ASC\n\t)\n)\nGO\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sp_dimCards')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE PROCEDURE Sp_UpdateAndInsertDimCards\n\tIF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = N'ext_cards' )\n\t\tBEGIN\n\t\t\tCREATE EXTERNAL TABLE ext_cards\n\t\t\t(\n\t\t\t  id INT,\n\t\t\t  client_id INT,\n\t\t\t  card_brand VARCHAR(100),\n\t\t\t  card_type VARCHAR(100),\n\t\t\t  card_number VARCHAR(100),\n\t\t\t  expires VARCHAR(100),\n\t\t\t  cvv VARCHAR(100),\n\t\t\t  has_chip VARCHAR(100),\n\t\t\t  num_cards_issued INT,\n\t\t\t  credit_limit VARCHAR(100), \n\t\t\t  acct_open_date VARCHAR(100), \n\t\t\t  year_pin_last_changed INT,\n\t\t\t  card_on_dark_web VARCHAR(100)\n\t\t\t)\n\t\t\tWITH\n\t\t\t(\n\t\t\t\tLOCATION = '/cards_data.csv',\n\t\t\t\tDATA_SOURCE = ds_datalake,\n\t\t\t\tFILE_FORMAT = csv_format\n\t\t\t)\n\t\tEND\n\n\t-------------------------------\n\t--CTA para transformaciones\n\n\tIF OBJECT_ID(N'CTA_DimCards', N'U') IS NOT NULL\n\t\t\tDROP TABLE CTA_DimCards\n\n\t\tCREATE TABLE CTA_DimCards  \n\t\tWITH  \n\t\t(  \n\t\t\tDISTRIBUTION = ROUND_ROBIN,  \n\t\t\tCLUSTERED COLUMNSTORE INDEX  \n\t\t)  \n\t\tAS  \n\t\tSELECT \n\t\t\tCAST(id as INT) as Id_Card,\n\t\t\tcard_brand  as card_brand,\n\t\t\tcard_type as card_type,\n\t\t\tcard_number as card_number,\n\t\t\thas_chip as has_chip,\n\t\t\tCAST(num_cards_issued as TINYINT) as num_cards,\n\t\t\tGETUTCDATE() AS CreationDate\n\t\tFROM ext_cards\n\n\t-------------------------------------\n\t--Insertar datos nuevos\n\n\tINSERT INTO DimCards\n\t\t(\n\t\t[Id_card]\n\t\t,[card_brand]\n\t\t,[card_type]\n\t\t,[card_number]\n\t\t,[has_chip]\n\t\t,[num_cards]\n\t\t,[CreationDate]\n\t\t)\n\tSELECT DISTINCT\n\t\tT.Id_Card,\n\t\tT.card_brand,\n\t\tT.card_type,\n\t\tT.card_number,\n\t\tT.has_chip,\n\t\tT.num_cards,\n\t\tGETUTCDATE() as CreationDate\n\tFROM CTA_DimCards as T\n\tLEFT JOIN DimCards as D ON T.Id_Card = D.Id_card\n\tWHERE D.CardSNK IS NULL\n\n\t-------------------------------------------------------\n\t--Actualizar datos\n\n\tUPDATE D SET\n\t\t[card_brand]\t=  T.[card_brand]\t\n\t\t,[card_type]\t=  T.[card_type]\t\n\t\t,[card_number]\t=  T.[card_number]\t\n\t\t,[has_chip]\t\t=  T.[has_chip]\t\t\n\t\t,[num_cards]\t=  T.[num_cards]\t\n\t\t,[CreationDate]\t=  T.[CreationDate]\n\tFROM  DimCards as D \n\tINNER JOIN CTA_DimCards as T ON T.Id_Card = D.Id_card\n\tWHERE\n\t\tD.[card_brand]\t<>  T.[card_brand]\tOR\n\t\tD.[card_type]\t\t<>  T.[card_type]\tOR\n\t\tD.[card_number]\t<>  T.[card_number]\tOR\n\t\tD.[has_chip]\t\t<>  T.[has_chip]\tOR\t\n\t\tD.[num_cards]\t\t<>  T.[num_cards]\t\n\nEND",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sp_dimUsers')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE PROCEDURE Sp_UpdateAndInsertDimClient AS\nBEGIN\n\tIF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = N'ext_users' )\n\t\tBEGIN\n\t\t\tCREATE EXTERNAL TABLE ext_users\n\t\t\t(\n\t\t\tid INT,\n\t\t\tcurrent_age INT,\n\t\t\tretirement_age INT,\n\t\t\tbirth_year INT,\n\t\t\tbirth_month INT,\n\t\t\tgender VARCHAR(10),\n\t\t\t[address] VARCHAR(255),\n\t\t\tlatitude FLOAT,\n\t\t\tlongitude FLOAT,\n\t\t\tper_capita_income VARCHAR(100),\n\t\t\tyearly_income VARCHAR(100),\n\t\t\ttotal_debt VARCHAR(100),\n\t\t\tcredit_score INT,\n\t\t\tnum_credit_cards INT\n\t\t\t)\n\t\t\tWITH\n\t\t\t(\n\t\t\t\tLOCATION = '/users_data.csv',\n\t\t\t\tDATA_SOURCE = ds_datalake,\n\t\t\t\tFILE_FORMAT = csv_format\n\t\t\t)\n\t\tEND\n\n\n\n\t------------------------CTA para transformaciones\n\tIF OBJECT_ID(N'CTA_DimUsers', N'U') IS NOT NULL\n\t\tDROP TABLE CTA_DimUsers\n\n\tCREATE TABLE CTA_DimUsers  \n\tWITH  \n\t(  \n\t\tDISTRIBUTION = ROUND_ROBIN,  \n\t\tCLUSTERED COLUMNSTORE INDEX  \n\t)  \n\tAS  \n\tSELECT \n\t\tCAST(id as INT) as id_client,\n\t\tCAST(current_age as INT) as current_age,\n\t\tCAST(retirement_age as INT) as retirement_age,\n\t\tCAST(birth_year as INT) as birth_year,\n\t\tCAST(birth_month as TINYINT) as birth_month,\n\t\tgender ,\n\t\t[address] ,\n\t\tCAST(latitude as Decimal(20,4)) as latitude,\n\t\tCAST(longitude as Decimal(20,4)) as longitude ,\n\t\tGETUTCDATE() AS CreationDate\n\tFROM ext_users\n\n\tSELECT * FROM CTA_DimUsers\n\n\t--------------------\n\t--Insertar los datos nuevos\n\tINSERT INTO DimClient\n\t(\n\t\t[Id_client]\n\t\t,[current_age]\n\t\t,[retirement_age]\n\t\t,[birth_year]\n\t\t,[birth_month]\n\t\t,[gender]\n\t\t,[address]\n\t\t,[latitude]\n\t\t,[longitude]\n\t\t,[CreationDate]\n\t)\n\tSELECT DISTINCT\n\t\tT.[Id_client]\n\t\t,T.[current_age]\n\t\t,T.[retirement_age]\n\t\t,T.[birth_year]\n\t\t,T.[birth_month]\n\t\t,T.[gender]\n\t\t,T.[address]\n\t\t,T.[latitude]\n\t\t,T.[longitude]\n\t\t,T.[CreationDate]\n\tFROM CTA_DimUsers AS T\n\tLEFT JOIN DimClient AS D ON T.Id_client = D.Id_client\n\tWHERE D.ClientSNK IS NULL\n\n\t--------------------------------------------------------------\n\t--Actualizar los datos\n\tUPDATE D SET\n\t\t [current_age]     = T.[current_age]   \n\t\t,[retirement_age]\t=   T.[retirement_age]\n\t\t,[birth_year]\t\t=   T.[birth_year]\n\t\t,[birth_month]\t\t=   T.[birth_month]\n\t\t,[gender]\t\t\t=   T.[gender]\n\t\t,[address]\t\t\t=   T.[address]\n\t\t,[latitude]\t\t\t=   T.[latitude]\n\t\t,[longitude]\t\t=   T.[longitude]\n\t\t,[CreationDate]\t\t=   T.[CreationDate]\n\tFROM DimClient AS D \n\tINNER JOIN CTA_DimUsers AS T ON T.Id_client = D.Id_client\n\tWHERE \n\t\tD.[retirement_age]\t <> T.[retirement_age]\t OR\n\t\tD.[birth_year]\t\t <> T.[birth_year]\t\t OR\n\t\tD.[birth_month]\t\t <> T.[birth_month]\t\t OR\n\t\tD.[gender]\t\t\t <> T.[gender]\t\t\t OR\n\t\tD.[address]\t\t\t <> T.[address]\t\t\t OR\n\t\tD.[latitude]\t\t <> T.[latitude]\t\t OR\n\t\tD.[longitude]\t\t <> T.[longitude]\t\n\n\n\t--------- Eliminar el CTA\n\tIF OBJECT_ID(N'CTA_DimUsers', N'U') IS NOT NULL\n\t\tDROP TABLE CTA_DimUsers\nEND",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sp_factTransacciones')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE PROCEDURE sp_DeleteAndInsertFactTransaction AS\nBEGIN\n\tDECLARE @Date DATE\n\tDECLARE @CurrentDay INT\n\n\tSET @Date= (SELECT DATEADD(MONTH, -1, CAST(GETDATE() as DATE)));\n\n\tIF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = N'ext_transacciones' )\n\t\tBEGIN\n\t\t\tCREATE EXTERNAL TABLE ext_transacciones (\n\t\t\t\tid INT,\n\t\t\t\t[date] VARCHAR(100),\n\t\t\t\tclient_id INT,\n\t\t\t\tcard_id INT,\n\t\t\t\tamount VARCHAR(20),\n\t\t\t\tuse_chip VARCHAR(100),\n\t\t\t\tmerchant_id INT,\n\t\t\t\tmerchant_city VARCHAR(100),\n\t\t\t\tmerchant_state VARCHAR(100),\n\t\t\t\tzip VARCHAR(10),\n\t\t\t\tmcc INT,\n\t\t\t\terrors VARCHAR(255)\n\t\t\t)\n\t\t\tWITH (\n\t\t\t\tLOCATION = '/transacciones.parquet/',  -- Ajusta si el archivo est� en otra carpeta o contenedor\n\t\t\t\tDATA_SOURCE = ds_datalake,\n\t\t\t\tFILE_FORMAT = parquet_format\n\t\t\t);\n\t\tEND\t\n\n\n\n\t---------------------------------------------\n\t-- Insertar nuevos datos de location\n\tINSERT INTO DimLocation\n\t\t(\n\t\t[merchant_city],\n\t\t[merchant_state],\n\t\t[CreationDate]\n\t\t)\n\tSELECT DISTINCT\n\t\tT.MERCHANT_CITY,\n\t\tT.merchant_state,\n\t\tGETUTCDATE() as CreationDate\n\tFROM ext_transacciones as T\n\tLEFT JOIN DimLocation as D ON T.merchant_city = D.Merchant_city AND T.merchant_state = D.merchant_state \n\tWHERE D.LocationSNK IS NULL\tAND T.merchant_city IS NOT NULL\n\n\t-----------------------------------------------\n\t--Actualizar los datos\n\tUPDATE D SET\n\t\tD.[merchant_city] = T.MERCHANT_CITY,\n\t\tD.[merchant_state]= T.merchant_state,\n\t\tD.CreationDate = GETUTCDATE() \n\tFROM DimLocation as D\n\tINNER JOIN ext_transacciones as T ON T.merchant_city = D.Merchant_city AND T.merchant_state = D.merchant_state \n\tWHERE \n\t\tD.[merchant_city] <> T.MERCHANT_CITY OR\n\t\tD.[merchant_state] <> T.merchant_state\t\n\n\t----------------------------------------------\n\t--CTA para transformacion\n\n\tIF OBJECT_ID(N'CTA_FactTransaction', N'U') IS NOT NULL\n\t\t\t\tDROP TABLE CTA_FactTransaction\n\n\tCREATE TABLE CTA_FactTransaction\n\tWITH (\n\t\tDISTRIBUTION = HASH (clientSNK)\n\t\t, CLUSTERED INDEX ([InvoiceDate] ASC)\n\t\t) AS\n\n\tSELECT\n\t\tInvoice = ISNULL(T.id, -1),\n\t\tInvoiceDate = CASE WHEN TRY_CAST([date] as DATETIME) IS NULL THEN CAST('1900-01-01' as DATETIME) ELSE CAST([date] as DATETIME) END,\n\t\t[Date] = CASE WHEN TRY_CAST([date] as DATE) IS NULL THEN CAST('1900-01-01' as DATE) ELSE CAST([date] as DATE) END,\n\t\tclientSNK = CASE WHEN T.client_id IS NULL THEN -1 ELSE ISNULL(U.clientSNK, 0) END,\n\t\tcardSNK = CASE WHEN T.card_id IS NULL THEN -1 ELSE ISNULL(C.cardSNK, 0) END,\n\t\tAmount = ISNULL(CAST(REPLACE(T.amount,'$','') AS DECIMAL(20,4)),0.0),\n\t\tuse_chip = use_chip,\n\t\tLocationSNK = ISNULL(L.LocationSNK, 0),\n\t\tCreationDate = GETUTCDATE()\n\n\tFROM ext_transacciones as T\n\tLEFT JOIN DimCards AS C ON T.card_id = C.id_card\n\tLEFT JOIN DimClient AS U ON T.client_id = U.id_client\n\tLEFT JOIN DimLocation AS L ON T.merchant_city = L.merchant_city AND T.merchant_state = L.merchant_state\n\n\n\t---------------------------------Cargar datos segun el delta tiempo\n\t----eliminar primero informacion\n\n\tDELETE FactTransaction\n\tWhere [date] >= @Date\n\n\n\t-------------------------------------------\n\t--insertar los datos\n\n\tINSERT INTO FactTransaction\n\t(\n\t\tInvoice\n\t\t,InvoiceDate \n\t\t,[Date] \n\t\t,clientSNK\n\t\t,cardSNK \n\t\t,Amount\n\t\t,use_chip \n\t\t,LocationSNK \n\t\t,CreationDate\n\t)\n\tSELECT \n\t\tInvoice\n\t\t,InvoiceDate \n\t\t,[Date] \n\t\t,clientSNK\n\t\t,cardSNK \n\t\t,Amount\n\t\t,use_chip \n\t\t,LocationSNK \n\t\t,CreationDate\n\tFROM CTA_FactTransaction\n\tWHERE [date] >= @Date\n\n\t---- Eliminar los CTA\n\tIF OBJECT_ID(N'CTA_FactTransaction', N'U') IS NOT NULL\n\t\t\t\tDROP TABLE CTA_FactTransaction\nEND\n\nEXEC sp_DeleteAndInsertFactTransaction",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/ConvertParquet')]",
 			"type": "Microsoft.Synapse/workspaces/notebooks",
 			"apiVersion": "2019-06-01-preview",
@@ -434,7 +534,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "4971b57f-0659-438a-b602-c380bde98a7d"
+						"spark.autotune.trackingId": "3c52c120-3a39-4ed8-840a-e9f89bba63ac"
 					}
 				},
 				"metadata": {
@@ -574,18 +674,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('workspaceName'), '/DW_financial')]",
-			"type": "Microsoft.Synapse/workspaces/sqlPools",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"collation": "SQL_Latin1_General_CP1_CI_AS",
-				"maxSizeBytes": 263882790666240,
-				"annotations": []
-			},
-			"dependsOn": [],
-			"location": "eastus2"
-		},
-		{
 			"name": "[concat(parameters('workspaceName'), '/sparkfinancial')]",
 			"type": "Microsoft.Synapse/workspaces/bigDataPools",
 			"apiVersion": "2019-06-01-preview",
@@ -605,6 +693,18 @@
 				"sparkVersion": "3.4",
 				"isComputeIsolationEnabled": false,
 				"sessionLevelPackagesEnabled": false,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus2"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DW_financial')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
 				"annotations": []
 			},
 			"dependsOn": [],
