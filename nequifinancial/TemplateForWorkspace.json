@@ -1,0 +1,621 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "nequifinancial"
+		},
+		"nequifinancial-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'nequifinancial-WorkspaceDefaultSqlServer'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:nequifinancial.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"DW_financial_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "nequifinancial.sql.azuresynapse.net"
+		},
+		"DW_financial_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "DW_financial"
+		},
+		"nequifinancial-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://nequidl.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/sparkfinancial')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DW_financial')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ET_DW')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Sp_DimCards",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "ConvertParquet",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[dbo].[Sp_UpdateAndInsertDimCards]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DW_financial",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SP_DimClients",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Sp_DimCards",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[dbo].[Sp_UpdateAndInsertDimClient]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DW_financial",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Sp_FactTransaction",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SP_DimClients",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[dbo].[sp_DeleteAndInsertFactTransaction]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DW_financial",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "ConvertParquet",
+						"type": "SynapseNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "EDA",
+								"type": "NotebookReference"
+							},
+							"snapshot": true,
+							"sparkPool": {
+								"referenceName": "sparkfinancial",
+								"type": "BigDataPoolReference"
+							},
+							"executorSize": "Small",
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"driverSize": "Small",
+							"numExecutors": null
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-03-16T22:38:00Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/DW_financial')]",
+				"[concat(variables('workspaceId'), '/notebooks/EDA')]",
+				"[concat(variables('workspaceId'), '/bigDataPools/sparkfinancial')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DW_financial')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"server": "[parameters('DW_financial_properties_typeProperties_server')]",
+					"database": "[parameters('DW_financial_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": true,
+					"authenticationType": "SystemAssignedManagedIdentity"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nequifinancial-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('nequifinancial-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nequifinancial-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('nequifinancial-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ConvertParquet')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparkfinancial",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "d196bc2c-88ed-4481-959b-dbd3b1f93840"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"synapse_widget": {
+						"version": "0.1"
+					},
+					"enableDebugMode": false,
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/fe1dcb1b-6718-40b9-aafb-4e0c35dee161/resourceGroups/nequifinancial/providers/Microsoft.Synapse/workspaces/nequifinancial/bigDataPools/sparkfinancial",
+						"name": "sparkfinancial",
+						"type": "Spark",
+						"endpoint": "https://nequifinancial.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkfinancial",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net",
+							"authHeader": null
+						},
+						"sparkVersion": "3.4",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28,
+						"extraHeader": null
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# **Librerias**"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"from pyspark.sql import SparkSession\n",
+							"from pyspark.sql.functions import *\n",
+							"from pyspark.sql.functions import col, isnan, when, count, desc, to_date, month, year, dayofmonth\n",
+							"from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType, BooleanType, TimestampType\n",
+							"import matplotlib.pyplot as plt\n",
+							"import seaborn as sns\n",
+							"import pandas as pd\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Carga de los CSV"
+						]
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"# Definir el esquema correcto\n",
+							"transacciones_schema = StructType([\n",
+							"    StructField(\"id\", IntegerType(), True),\n",
+							"    StructField(\"date\", StringType(), True), \n",
+							"    StructField(\"client_id\", IntegerType(), True),\n",
+							"    StructField(\"card_id\", IntegerType(), True),\n",
+							"    StructField(\"amount\", StringType(), True),  \n",
+							"    StructField(\"use_chip\", StringType(), True),\n",
+							"    StructField(\"merchant_id\", IntegerType(), True),\n",
+							"    StructField(\"merchant_city\", StringType(), True),\n",
+							"    StructField(\"merchant_state\", StringType(), True),\n",
+							"    StructField(\"zip\", StringType(), True),\n",
+							"    StructField(\"mcc\", IntegerType(), True),\n",
+							"    StructField(\"errors\", StringType(), True)\n",
+							"    ])"
+						],
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"path = \"abfss://raw@nequidl.dfs.core.windows.net\"\n",
+							"transacciones_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).schema(transacciones_schema).csv(f\"{path}/transactions_data_limited.csv\")"
+						],
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"source": [
+							"transacciones_df.write.mode(\"overwrite\").parquet(\"abfss://raw@nequidl.dfs.core.windows.net/transacciones.parquet\")\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": 4
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/EDA')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "sparkfinancial",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "a15bc1f5-c83d-4515-bd40-09d96bfb54df"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"enableDebugMode": false,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/fe1dcb1b-6718-40b9-aafb-4e0c35dee161/resourceGroups/nequifinancial/providers/Microsoft.Synapse/workspaces/nequifinancial/bigDataPools/sparkfinancial",
+						"name": "sparkfinancial",
+						"type": "Spark",
+						"endpoint": "https://nequifinancial.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkfinancial",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "3.4",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28,
+						"automaticScaleJobs": false
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# **Librerias**"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"from pyspark.sql import SparkSession\n",
+							"from pyspark.sql.functions import *\n",
+							"from pyspark.sql.functions import col, isnan, when, count, desc, to_date, month, year, dayofmonth\n",
+							"from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType, BooleanType, TimestampType\n",
+							"import matplotlib.pyplot as plt\n",
+							"import seaborn as sns\n",
+							"import pandas as pd\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Carga de los CSV"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"# Definir el esquema correcto\n",
+							"transacciones_schema = StructType([\n",
+							"    StructField(\"id\", IntegerType(), True),\n",
+							"    StructField(\"date\", StringType(), True), \n",
+							"    StructField(\"client_id\", IntegerType(), True),\n",
+							"    StructField(\"card_id\", IntegerType(), True),\n",
+							"    StructField(\"amount\", StringType(), True),  \n",
+							"    StructField(\"use_chip\", StringType(), True),\n",
+							"    StructField(\"merchant_id\", IntegerType(), True),\n",
+							"    StructField(\"merchant_city\", StringType(), True),\n",
+							"    StructField(\"merchant_state\", StringType(), True),\n",
+							"    StructField(\"zip\", StringType(), True),\n",
+							"    StructField(\"mcc\", IntegerType(), True),\n",
+							"    StructField(\"errors\", StringType(), True)\n",
+							"    ])"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"path = \"abfss://raw@nequidl.dfs.core.windows.net\"\n",
+							"transacciones_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).schema(transacciones_schema).csv(f\"{path}/transactions_data_limited.csv\")\n",
+							"cards_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/cards_data.csv\")\n",
+							"users_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/users_data.csv\")"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"transacciones_df.show(5)\n",
+							"cards_df.show(5)\n",
+							"users_df.show(5)"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"transacciones_df.printSchema()\n",
+							"users_df.printSchema()\n",
+							"cards_df.printSchema()"
+						],
+						"outputs": [],
+						"execution_count": null
+					},
+					{
+						"cell_type": "code",
+						"metadata": {},
+						"source": [
+							"print(f\"Transacciones: {transacciones_df.count()}\")\n",
+							"print(f\"Usuarios: {users_df.count()}\")\n",
+							"print(f\"Tipos de Tarjeta: {cards_df.count()}\")\n",
+							""
+						],
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/sparkfinancial')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 15
+				},
+				"autoScale": {
+					"enabled": true,
+					"maxNodeCount": 5,
+					"minNodeCount": 3
+				},
+				"nodeCount": 10,
+				"nodeSize": "Small",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.4",
+				"isComputeIsolationEnabled": false,
+				"sessionLevelPackagesEnabled": false,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus2"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DW_financial')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus2"
+		}
+	]
+}
