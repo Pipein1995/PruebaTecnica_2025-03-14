@@ -148,7 +148,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"notebook": {
-								"referenceName": "EDA",
+								"referenceName": "ConvertParquet",
 								"type": "NotebookReference"
 							},
 							"snapshot": true,
@@ -175,7 +175,7 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/linkedServices/DW_financial')]",
-				"[concat(variables('workspaceId'), '/notebooks/EDA')]",
+				"[concat(variables('workspaceId'), '/notebooks/ConvertParquet')]",
 				"[concat(variables('workspaceId'), '/bigDataPools/sparkfinancial')]"
 			]
 		},
@@ -434,7 +434,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "a15bc1f5-c83d-4515-bd40-09d96bfb54df"
+						"spark.autotune.trackingId": "4971b57f-0659-438a-b602-c380bde98a7d"
 					}
 				},
 				"metadata": {
@@ -459,8 +459,7 @@
 						"sparkVersion": "3.4",
 						"nodeCount": 10,
 						"cores": 4,
-						"memory": 28,
-						"automaticScaleJobs": false
+						"memory": 28
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -480,7 +479,6 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
 							"from pyspark.sql import SparkSession\n",
 							"from pyspark.sql.functions import *\n",
@@ -509,7 +507,6 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
 							"# Definir el esquema correcto\n",
 							"transacciones_schema = StructType([\n",
@@ -532,7 +529,6 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
 							"path = \"abfss://raw@nequidl.dfs.core.windows.net\"\n",
 							"transacciones_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).schema(transacciones_schema).csv(f\"{path}/transactions_data_limited.csv\")\n",
@@ -544,7 +540,6 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
 							"transacciones_df.show(5)\n",
 							"cards_df.show(5)\n",
@@ -555,7 +550,6 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
 							"transacciones_df.printSchema()\n",
 							"users_df.printSchema()\n",
@@ -566,7 +560,6 @@
 					},
 					{
 						"cell_type": "code",
-						"metadata": {},
 						"source": [
 							"print(f\"Transacciones: {transacciones_df.count()}\")\n",
 							"print(f\"Usuarios: {users_df.count()}\")\n",
@@ -579,6 +572,18 @@
 				]
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DW_financial')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus2"
 		},
 		{
 			"name": "[concat(parameters('workspaceName'), '/sparkfinancial')]",
@@ -600,18 +605,6 @@
 				"sparkVersion": "3.4",
 				"isComputeIsolationEnabled": false,
 				"sessionLevelPackagesEnabled": false,
-				"annotations": []
-			},
-			"dependsOn": [],
-			"location": "eastus2"
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/DW_financial')]",
-			"type": "Microsoft.Synapse/workspaces/sqlPools",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"collation": "SQL_Latin1_General_CP1_CI_AS",
-				"maxSizeBytes": 263882790666240,
 				"annotations": []
 			},
 			"dependsOn": [],
