@@ -1,0 +1,131 @@
+{
+	"name": "ConvertParquet",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkfinancial",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "d196bc2c-88ed-4481-959b-dbd3b1f93840"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"enableDebugMode": false,
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/fe1dcb1b-6718-40b9-aafb-4e0c35dee161/resourceGroups/nequifinancial/providers/Microsoft.Synapse/workspaces/nequifinancial/bigDataPools/sparkfinancial",
+				"name": "sparkfinancial",
+				"type": "Spark",
+				"endpoint": "https://nequifinancial.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkfinancial",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# **Librerias**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\n",
+					"from pyspark.sql.functions import *\n",
+					"from pyspark.sql.functions import col, isnan, when, count, desc, to_date, month, year, dayofmonth\n",
+					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType, BooleanType, TimestampType\n",
+					"import matplotlib.pyplot as plt\n",
+					"import seaborn as sns\n",
+					"import pandas as pd\n",
+					""
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Carga de los CSV"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Definir el esquema correcto\n",
+					"transacciones_schema = StructType([\n",
+					"    StructField(\"id\", IntegerType(), True),\n",
+					"    StructField(\"date\", StringType(), True), \n",
+					"    StructField(\"client_id\", IntegerType(), True),\n",
+					"    StructField(\"card_id\", IntegerType(), True),\n",
+					"    StructField(\"amount\", StringType(), True),  \n",
+					"    StructField(\"use_chip\", StringType(), True),\n",
+					"    StructField(\"merchant_id\", IntegerType(), True),\n",
+					"    StructField(\"merchant_city\", StringType(), True),\n",
+					"    StructField(\"merchant_state\", StringType(), True),\n",
+					"    StructField(\"zip\", StringType(), True),\n",
+					"    StructField(\"mcc\", IntegerType(), True),\n",
+					"    StructField(\"errors\", StringType(), True)\n",
+					"    ])"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"path = \"abfss://raw@nequidl.dfs.core.windows.net\"\n",
+					"transacciones_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).schema(transacciones_schema).csv(f\"{path}/transactions_data_limited.csv\")"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"transacciones_df.write.mode(\"overwrite\").parquet(\"abfss://raw@nequidl.dfs.core.windows.net/transacciones.parquet\")\n",
+					""
+				],
+				"execution_count": 4
+			}
+		]
+	}
+}

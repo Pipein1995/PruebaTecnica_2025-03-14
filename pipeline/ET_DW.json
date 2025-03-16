@@ -1,0 +1,111 @@
+{
+	"name": "ET_DW",
+	"properties": {
+		"activities": [
+			{
+				"name": "Sp_DimCards",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "ConvertParquet",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[Sp_UpdateAndInsertDimCards]"
+				},
+				"linkedServiceName": {
+					"referenceName": "DW_financial",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "SP_DimClients",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Sp_DimCards",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[Sp_UpdateAndInsertDimClient]"
+				},
+				"linkedServiceName": {
+					"referenceName": "DW_financial",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Sp_FactTransaction",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "SP_DimClients",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[sp_DeleteAndInsertFactTransaction]"
+				},
+				"linkedServiceName": {
+					"referenceName": "DW_financial",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "ConvertParquet",
+				"type": "SynapseNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebook": {
+						"referenceName": "EDA",
+						"type": "NotebookReference"
+					},
+					"snapshot": true
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2025-03-16T22:38:00Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}
