@@ -39,6 +39,35 @@ Valores Nulos: Se cuantificó la presencia de valores nulos en columnas crítica
 
 Este análisis permitió diseñar una estrategia de limpieza y transformación adecuada, asegurando la integridad y calidad de los datos antes de su incorporación al modelo estrella.
 
+Durante el proceso de integración de los datos en el Data Warehouse (DW), se aplicaron diversas transformaciones para asegurar la calidad e integridad de la información, abordando problemas identificados durante el análisis exploratorio. A continuación, se describen los principales pasos realizados:
+
+### 1. Corrección de Tipos de Datos:
+
+- Se ajustaron los tipos de datos en campos clave, como las fechas, aplicando conversiones a DATETIME para garantizar la correcta interpretación de los valores temporales.
+- Los campos numéricos, como montos y límites de crédito, se convirtieron a tipos adecuados como FLOAT o DECIMAL, facilitando operaciones aritméticas en las consultas.
+
+### 2. Gestión de Valores Nulos:
+
+- Se identificaron columnas críticas que no debían contener valores nulos, como los IDs de clientes y tarjetas.
+- Para estos casos, se aplicó una estrategia de sustitución de nulos, asignando valores predeterminados como 0 o -1 para mantener la integridad de las claves foráneas y evitar rupturas en el modelo relacional.
+- En campos no críticos, los nulos se mantuvieron o se reemplazaron por el valor "Indeterminado", facilitando la interpretación en futuros análisis.
+
+### 3. Eliminación de Duplicados:
+
+- Se implementó una estrategia para la carga de dimensiones donde solo se insertaron registros únicos, evitando duplicados al crear las tablas dimensionales.
+- En el caso de la tabla de hechos, se aplicó una lógica de carga incremental, asegurando que cada transacción se registre una sola vez.
+
+### 4. Generación de Claves Únicas (Super Natural Key - SNK):
+
+- Se crearon Super Natural Keys (SNK) para cada dimensión, permitiendo identificar de forma única cada registro y optimizando la búsqueda y el cruce de información entre la tabla de hechos y las dimensiones.
+- Estas claves se generaron a partir de combinaciones de atributos clave, garantizando unicidad en los registros.
+
+### 5. Validación Final:
+
+- Se realizaron controles de calidad posteriores a la limpieza, validando la cantidad de registros, la coherencia de los tipos de datos y la ausencia de duplicados en las dimensiones y la tabla de hechos.
+
+Con estas acciones, se garantizó que la información cargada en el DW cumpliera con los estándares de calidad, optimizando tanto el rendimiento de las consultas como la fiabilidad de los análisis posteriores.
+
 ## Transformación de datos
 Dado que los datos iniciales se encontraban en estado bruto, se identificaron diversos problemas de calidad, tales como la presencia de valores nulos, registros duplicados, formatos incorrectos de fecha y tipos de datos inconsistentes. Para abordar estas situaciones, se implementó un proceso de transformación centrado en la limpieza, desnormalización y optimización de la información, con el objetivo de estructurar los datos en un modelo estrella compuesto por tablas de dimensiones y una tabla de hechos.
 - Creación de dimensiones: La generación de las dimensiones se llevó a cabo mediante Stored Procedures (SP) en el Data Warehouse (DW), los cuales realizaron la carga de datos con las respectivas validaciones de calidad y la aplicación de claves únicas utilizando el concepto de Super Natural Key (SNK). Se construyeron las siguientes dimensiones:
@@ -73,6 +102,32 @@ Finalmente se realiza diversas consultas al DW, verificando la calidad de los da
 ## Herramientas utilizadas
 Se agrega los scripts de SQL para la creación de las tablas externas, las tablas del DW y para la creación de los SP.
 Se agrega los notebook para la conversión de CSV a PARQUET y para el analisis del EDA.
+
+## Manejo de Excepciones y Registro de Logs
+En un entorno de procesamiento de datos como el implementado en Azure Synapse Analytics, es fundamental contar con un mecanismo de administración de excepciones y registro de logs que permita supervisar la ejecución del proceso ETL, identificar posibles errores y garantizar la trazabilidad de los datos.
+
+De haber implementado este manejo, se habría considerado lo siguiente:
+
+### 1. Estructura de Carpetas:
+Se habría creado una carpeta específica dentro del proyecto en el Data Lake o en la estructura del repositorio de código, denominada algo como:
+- logs
+- exceptions
+- monitoring
+
+Esta estructura permitiría centralizar la administración de registros, separando los logs de ejecución y las excepciones de los datos procesados.
+
+### 2. Registro de Ejecuciones:
+- Se habría implementado un mecanismo para registrar el inicio y fin de cada ejecución del pipeline, documentando el tiempo de procesamiento y la cantidad de registros procesados.
+- Esto se lograría mediante la creación de una tabla de auditoría.
+
+### 3. Integración con Pipelines:
+- En el Pipeline de Synapse, se habría agregado una actividad para registrar el inicio y fin de cada ejecución, con capturas de errores personalizadas y envío de notificaciones en caso de fallos.
+- También se podrían haber configurado alertas a través de Azure Monitor para notificar eventos críticos.
+
+### 4. Consutal de logs:
+- Finalmente, se habría diseñado un conjunto de consultas o vistas que permitieran inspeccionar rápidamente los errores registrados, facilitando la identificación de cuellos de botella y la mejora continua del proceso.
+
+Con la implementación de estas prácticas, se habría logrado un sistema de auditoría robusto, capaz de proporcionar visibilidad en todo el ciclo de vida del ETL, desde la ingesta hasta la carga en el DW, facilitando la detección y resolución de errores de manera oportuna.
 
 ## Escenario de mayor alcance.
 ### 1. En dado caso que los datos se incrementaran a 100x.
