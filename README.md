@@ -75,7 +75,7 @@ Se agrega los scripts de SQL para la creación de las tablas externas, las tabla
 Se agrega los notebook para la conversión de CSV a PARQUET y para el analisis del EDA.
 
 ## Escenario de mayor alcance.
-1. En dado caso que los datos se incrementaran a 100x.
+### 1. En dado caso que los datos se incrementaran a 100x.
 Mantendría la misma arquitectura, pero con mejoras clave para manejar la escalabilidad:
 - Optimización del Almacenamiento: Agregaría una Landing Zone en el Data Lake para almacenar los archivos CSV en bruto. Posteriormente, se implementaría un proceso de transformación a formato Parquet, lo que reduce el tamaño de almacenamiento y optimiza la lectura mediante las tablas externas.
   
@@ -87,18 +87,18 @@ Mantendría la misma arquitectura, pero con mejoras clave para manejar la escala
 
 - Procesamiento Incremental: Implementaría una estrategia de carga incremental, donde solo se procesen los nuevos registros desde la última ejecución, minimizando el tiempo de procesamiento.
 
-2. Los pipelines seria necesario una ejecución daria.
+### 2. Los pipelines seria necesario una ejecución daria.
 - Trigger Diario: Configuraría un Trigger que ejecute el pipeline en una ventana de tiempo específica, idealmente fuera del horario de mayor actividad del sistema, asegurando que todas las transacciones se hayan registrado antes de la carga.
 - Procesamiento Incremental: Utilizaría un enfoque basado en un delta temporal o un campo de timestamp de creación/actualización para filtrar solo los nuevos registros. Esto reduciría el volumen de datos procesados diariamente y optimizaría el tiempo de ejecución.
 - Control de Errores: Agregaría mecanismos de control en el pipeline, como la validación de la correcta ejecución de cada paso y la creación de alertas en caso de fallos.
 
-3. Si la base de datos necesitara ser accedido por más de 100 usuarios funcionales.
+### 3. Si la base de datos necesitara ser accedido por más de 100 usuarios funcionales.
 En este caso, podria tener varias opciones:
 - Particionamiento de la Tabla de Hechos: Implementaría un esquema de particionamiento por campos temporales, como fecha de transacción, con granularidad mensual o trimestral. Esto permitiría que las consultas lean solo las particiones necesarias, reduciendo tiempos de respuesta y minimizando bloqueos.
 - Optimización de Consultas: Utilizaría vistas materializadas o sinónimos para exponer los datos de forma simplificada a los usuarios funcionales, reduciendo la carga sobre las tablas principales.
 - Carga de Trabajo Separada: Si la concurrencia se vuelve un cuello de botella, consideraría la creación de réplicas de solo lectura en otro SQL Pool para distribuir la carga de consultas.
 
-4. Si se require analítica en tiempo real.
+### 4. Si se require analítica en tiempo real.
 Para soportar análisis en tiempo real, complementaría la arquitectura con nuevos componentes:
 - Event Hub o IoT Hub: Para la ingesta de eventos en tiempo real directamente desde los sistemas transaccionales.
 - Stream Analytics: Para procesar flujos de datos en tiempo real, aplicando transformaciones rápidas y cargando resultados directamente en el Data Warehouse o en una base de datos optimizada para lecturas rápidas, como Cosmos DB o Azure SQL Hyperscale.
