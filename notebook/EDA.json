@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "965cc40b-eef6-4001-b10e-a8599ea4857e"
+				"spark.autotune.trackingId": "3c04518f-875a-49e5-8c78-42ede1d017c7"
 			}
 		},
 		"metadata": {
@@ -69,12 +69,14 @@
 					"from pyspark.sql.functions import *\n",
 					"from pyspark.sql.functions import col, isnan, when, count, desc, to_date, month, year, dayofmonth\n",
 					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType, FloatType, BooleanType, TimestampType\n",
+					"from pyspark.sql.functions import to_date, isnull\n",
+					"from pyspark.sql.functions import to_timestamp\n",
 					"import matplotlib.pyplot as plt\n",
 					"import seaborn as sns\n",
 					"import pandas as pd\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "markdown",
@@ -97,7 +99,7 @@
 					"cards_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/cards_data.csv\")\n",
 					"users_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/users_data.csv\")"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -106,7 +108,7 @@
 					"cards_df.show(5)\n",
 					"users_df.show(5)"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -115,7 +117,7 @@
 					"users_df.printSchema()\n",
 					"cards_df.printSchema()"
 				],
-				"execution_count": null
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -125,7 +127,77 @@
 					"print(f\"Tipos de Tarjeta: {cards_df.count()}\")\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"\n",
+					"# Contar nulos por columna en cada DataFrame\n",
+					"transacciones_df.select([count(when(col(c).isNull() | isnan(c), c)).alias(c) for c in transacciones_df.columns]).show()\n",
+					"cards_df.select([count(when(col(c).isNull() | isnan(c), c)).alias(c) for c in cards_df.columns]).show()\n",
+					"users_df.select([count(when(col(c).isNull() | isnan(c), c)).alias(c) for c in users_df.columns]).show()\n",
+					""
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Contar duplicados solo en las columnas ID de cada DataFrame\n",
+					"print(\"Duplicados en transacciones (id):\", transacciones_df.count() - transacciones_df.dropDuplicates([\"id\"]).count())\n",
+					"print(\"Duplicados en cards (id):\", cards_df.count() - cards_df.dropDuplicates([\"id\"]).count())\n",
+					"print(\"Duplicados en users (id):\", users_df.count() - users_df.dropDuplicates([\"id\"]).count())\n",
+					""
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Describe para transacciones\n",
+					"print(\" Descripción de Transacciones:\")\n",
+					"transacciones_df.describe().show()\n",
+					"\n",
+					"# Describe para cards\n",
+					"print(\" Descripción de Cards:\")\n",
+					"cards_df.describe().show()\n",
+					"\n",
+					"# Describe para users\n",
+					"print(\" Descripción de Users:\")\n",
+					"users_df.describe().show()\n",
+					""
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Intentar convertir la columna date\n",
+					"transacciones_df = transacciones_df.withColumn(\"date_parsed\", to_date(\"date\", \"yyyy-MM-dd\"))\n",
+					""
+				],
+				"execution_count": 21
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"\n",
+					"# Intentar convertir con el formato correcto que incluya la hora\n",
+					"transacciones_df = transacciones_df.withColumn(\"date_parsed\", to_timestamp(col(\"date\"), \"yyyy-MM-dd HH:mm:ss\"))\n",
+					"\n",
+					"# Filtrar los errores de conversión\n",
+					"errores_fecha_df = transacciones_df.filter(col(\"date_parsed\").isNull())\n",
+					"\n",
+					"# Mostrar filas con errores\n",
+					"errores_fecha_df.select(\"id\", \"date\").show(truncate=False)\n",
+					"\n",
+					"# Contar errores\n",
+					"print(f\"Cantidad de errores en la columna 'date': {errores_fecha_df.count()}\")\n",
+					""
+				],
+				"execution_count": 26
 			}
 		]
 	}
