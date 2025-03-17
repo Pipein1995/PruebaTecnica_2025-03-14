@@ -534,7 +534,7 @@
 						"spark.dynamicAllocation.enabled": "false",
 						"spark.dynamicAllocation.minExecutors": "2",
 						"spark.dynamicAllocation.maxExecutors": "2",
-						"spark.autotune.trackingId": "3c52c120-3a39-4ed8-840a-e9f89bba63ac"
+						"spark.autotune.trackingId": "ec7489d6-a304-48ef-b00b-d4977d50d472"
 					}
 				},
 				"metadata": {
@@ -559,7 +559,8 @@
 						"sparkVersion": "3.4",
 						"nodeCount": 10,
 						"cores": 4,
-						"memory": 28
+						"memory": 28,
+						"automaticScaleJobs": false
 					},
 					"sessionKeepAliveTimeout": 30
 				},
@@ -579,6 +580,7 @@
 					},
 					{
 						"cell_type": "code",
+						"metadata": {},
 						"source": [
 							"from pyspark.sql import SparkSession\n",
 							"from pyspark.sql.functions import *\n",
@@ -607,31 +609,10 @@
 					},
 					{
 						"cell_type": "code",
-						"source": [
-							"# Definir el esquema correcto\n",
-							"transacciones_schema = StructType([\n",
-							"    StructField(\"id\", IntegerType(), True),\n",
-							"    StructField(\"date\", StringType(), True), \n",
-							"    StructField(\"client_id\", IntegerType(), True),\n",
-							"    StructField(\"card_id\", IntegerType(), True),\n",
-							"    StructField(\"amount\", StringType(), True),  \n",
-							"    StructField(\"use_chip\", StringType(), True),\n",
-							"    StructField(\"merchant_id\", IntegerType(), True),\n",
-							"    StructField(\"merchant_city\", StringType(), True),\n",
-							"    StructField(\"merchant_state\", StringType(), True),\n",
-							"    StructField(\"zip\", StringType(), True),\n",
-							"    StructField(\"mcc\", IntegerType(), True),\n",
-							"    StructField(\"errors\", StringType(), True)\n",
-							"    ])"
-						],
-						"outputs": [],
-						"execution_count": null
-					},
-					{
-						"cell_type": "code",
+						"metadata": {},
 						"source": [
 							"path = \"abfss://raw@nequidl.dfs.core.windows.net\"\n",
-							"transacciones_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).schema(transacciones_schema).csv(f\"{path}/transactions_data_limited.csv\")\n",
+							"transacciones_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/transactions_data_limited.csv\")\n",
 							"cards_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/cards_data.csv\")\n",
 							"users_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/users_data.csv\")"
 						],
@@ -640,6 +621,7 @@
 					},
 					{
 						"cell_type": "code",
+						"metadata": {},
 						"source": [
 							"transacciones_df.show(5)\n",
 							"cards_df.show(5)\n",
@@ -650,6 +632,7 @@
 					},
 					{
 						"cell_type": "code",
+						"metadata": {},
 						"source": [
 							"transacciones_df.printSchema()\n",
 							"users_df.printSchema()\n",
@@ -660,6 +643,7 @@
 					},
 					{
 						"cell_type": "code",
+						"metadata": {},
 						"source": [
 							"print(f\"Transacciones: {transacciones_df.count()}\")\n",
 							"print(f\"Usuarios: {users_df.count()}\")\n",
