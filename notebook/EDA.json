@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "3c52c120-3a39-4ed8-840a-e9f89bba63ac"
+				"spark.autotune.trackingId": "965cc40b-eef6-4001-b10e-a8599ea4857e"
 			}
 		},
 		"metadata": {
@@ -92,29 +92,8 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"# Definir el esquema correcto\n",
-					"transacciones_schema = StructType([\n",
-					"    StructField(\"id\", IntegerType(), True),\n",
-					"    StructField(\"date\", StringType(), True), \n",
-					"    StructField(\"client_id\", IntegerType(), True),\n",
-					"    StructField(\"card_id\", IntegerType(), True),\n",
-					"    StructField(\"amount\", StringType(), True),  \n",
-					"    StructField(\"use_chip\", StringType(), True),\n",
-					"    StructField(\"merchant_id\", IntegerType(), True),\n",
-					"    StructField(\"merchant_city\", StringType(), True),\n",
-					"    StructField(\"merchant_state\", StringType(), True),\n",
-					"    StructField(\"zip\", StringType(), True),\n",
-					"    StructField(\"mcc\", IntegerType(), True),\n",
-					"    StructField(\"errors\", StringType(), True)\n",
-					"    ])"
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"source": [
 					"path = \"abfss://raw@nequidl.dfs.core.windows.net\"\n",
-					"transacciones_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).schema(transacciones_schema).csv(f\"{path}/transactions_data_limited.csv\")\n",
+					"transacciones_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/transactions_data_limited.csv\")\n",
 					"cards_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/cards_data.csv\")\n",
 					"users_df = spark.read.option(\"delimiter\", \",\").option(\"header\", True).csv(f\"{path}/users_data.csv\")"
 				],
